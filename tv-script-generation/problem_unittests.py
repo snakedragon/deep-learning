@@ -86,6 +86,20 @@ def test_get_batches(get_batches):
         assert batches.shape == (7, 2, 128, 5),\
             'Batches returned wrong shape.  Found {}'.format(batches.shape)
 
+        for x in range(batches.shape[2]):
+            assert np.array_equal(batches[0,0,x], np.array(range(x * 35, x * 35 + batches.shape[3]))),\
+                'Batches returned wrong contents. For example, input sequence {} in the first batch was {}'.format(x, batches[0,0,x])
+            assert np.array_equal(batches[0,1,x], np.array(range(x * 35 + 1, x * 35 + 1 + batches.shape[3]))),\
+                'Batches returned wrong contents. For example, target sequence {} in the first batch was {}'.format(x, batches[0,1,x])
+
+
+        last_seq_target = (test_batch_size-1) * 35 + 31
+        last_seq = np.array(range(last_seq_target, last_seq_target+ batches.shape[3]))
+        last_seq[-1] = batches[0,0,0,0]
+
+        assert np.array_equal(batches[-1,1,-1], last_seq),\
+            'The last target of the last batch should be the first input of the first batch. Found {} but expected {}'.format(batches[-1,1,-1], last_seq)
+
     _print_success_message()
 
 
@@ -168,7 +182,7 @@ def test_get_inputs(get_inputs):
 
 def test_get_init_cell(get_init_cell):
     with tf.Graph().as_default():
-        test_batch_size_ph = tf.placeholder(tf.int32)
+        test_batch_size_ph = tf.placeholder(tf.int32, [])
         test_rnn_size = 256
 
         cell, init_state = get_init_cell(test_batch_size_ph, test_rnn_size)
@@ -208,7 +222,7 @@ def test_build_rnn(build_rnn):
     with tf.Graph().as_default():
         test_rnn_size = 256
         test_rnn_layer_size = 2
-        test_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(test_rnn_size)] * test_rnn_layer_size)
+        test_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(test_rnn_size) for _ in range(test_rnn_layer_size)])
 
         test_inputs = tf.placeholder(tf.float32, [None, None, test_rnn_size])
         outputs, final_state = build_rnn(test_cell, test_inputs)
@@ -236,7 +250,7 @@ def test_build_nn(build_nn):
         test_embed_dim = 300
         test_rnn_layer_size = 2
         test_vocab_size = 27
-        test_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(test_rnn_size)] * test_rnn_layer_size)
+        test_cell = rnn.MultiRNNCell([rnn.BasicLSTMCell(test_rnn_size) for _ in range(test_rnn_layer_size)])
 
         logits, final_state = build_nn(test_cell, test_rnn_size, test_input_data, test_vocab_size, test_embed_dim)
 
@@ -249,7 +263,7 @@ def test_build_nn(build_nn):
         # Check Shape
         assert logits.get_shape().as_list() == test_input_data_shape + [test_vocab_size], \
             'Outputs has wrong shape.  Found shape {}'.format(logits.get_shape())
-        assert final_state.get_shape().as_list() == [test_rnn_layer_size, 2, None, test_rnn_size], \
+        assert final_state.get_shape().as_list() == [test_rnn_layer_size, 2, 128, test_rnn_size], \
             'Final state wrong shape.  Found shape {}'.format(final_state.get_shape())
 
     _print_success_message()
@@ -295,3 +309,4 @@ def test_pick_word(pick_word):
 
 
     _print_success_message()
+
